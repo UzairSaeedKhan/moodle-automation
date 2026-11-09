@@ -1,0 +1,25 @@
+# Copy to .dev.vars for local testing (`uv run pywrangler dev`). Never commit .dev.vars.
+#
+# In production, set each of these as a Cloudflare secret instead:
+#   uv run pywrangler secret put MOODLE_USERNAME
+#   uv run pywrangler secret put MOODLE_PASSWORD
+#   uv run pywrangler secret put TELEGRAM_BOT_TOKEN        (Telegram mode only, also the next two)
+#   uv run pywrangler secret put TELEGRAM_CHAT_ID
+#   uv run pywrangler secret put TELEGRAM_WEBHOOK_SECRET
+
+# Your Moodle login
+MOODLE_USERNAME=
+MOODLE_PASSWORD=
+
+# ---- Telegram (optional). Leave all three empty for automation-only mode. ----
+
+# From @BotFather on Telegram (/newbot)
+TELEGRAM_BOT_TOKEN=
+
+# Your own Telegram chat id. The bot ignores everyone else.
+# Don't know it? Deploy first, send /start to your bot, it replies with your id.
+TELEGRAM_CHAT_ID=
+
+# Any random string (letters, digits, _ and -). Generate one with:
+#   python3 -c "import secrets; print(secrets.token_hex(32))"
+TELEGRAM_WEBHOOK_SECRET=

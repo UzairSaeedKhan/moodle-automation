@@ -1,0 +1,22 @@
+[project]
+name = "moodle-checkin-bot"
+version = "0.2.0"
+description = "Self-hosted Telegram bot that checks you in/out of Moodle attendance on a schedule (Cloudflare Python Workers, free tier)."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    # timezone database for zoneinfo (the Workers runtime has no system tz files)
+    "tzdata",
+]
+
+[dependency-groups]
+dev = [
+    "workers-py",          # pywrangler: dev / deploy
+    "workers-runtime-sdk", # type hints for the `workers` module
+    "pytest>=8",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-q"

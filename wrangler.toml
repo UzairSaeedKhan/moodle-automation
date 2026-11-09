@@ -1,0 +1,57 @@
+name = "moodle-checkin-bot"
+main = "src/entry.py"
+compatibility_date = "2026-11-01"
+compatibility_flags = ["python_workers"]
+
+# Public URL https://moodle-checkin-bot.<you>.workers.dev (needed for Telegram and /setup).
+workers_dev = true
+# No extra per-version preview URLs.
+preview_urls = false
+# Keep variables you add in the Cloudflare dashboard (e.g. DAY_OVERRIDES, PAUSED)
+# when you deploy again. Values written below in [vars] still win on each deploy.
+keep_vars = true
+
+# Runs every minute. The code itself decides (in your TIMEZONE) whether
+# anything is due, so daylight-saving changes are handled automatically.
+[triggers]
+crons = ["* * * * *"]
+
+# Create it with:  uv run pywrangler kv namespace create STATE
+# then paste the id it prints below.
+[[kv_namespaces]]
+binding = "STATE"
+#id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+id = "e9d431d7bd164bcf9eb60f1a20033248"
+
+# Non-secret settings. Secrets (password, tokens) are NOT here:
+# see .dev.vars.example and the README.
+[vars]
+MOODLE_URL = "https://moodle.becode.org"
+# The number after ?id= in your class's Attendance page URL
+# (e.g. https://moodle.becode.org/mod/attendance/view.php?id=1491)
+ATTENDANCE_CMID = "1491"
+TIMEZONE = "Europe/Brussels"
+
+# Default week. Values: campus | home | off
+WEEKLY_PATTERN = "mon:home,tue:campus,wed:home,thu:campus,fri:home"
+
+# Default times (HH:MM, local time). Can be changed from Telegram with /time.
+TIME_AM_IN = "09:00"
+TIME_AM_OUT = "12:30"
+TIME_PM_IN = "13:30"
+TIME_PM_OUT = "17:00"
+
+# If the button isn't there yet / Moodle errors, keep retrying every minute for this long.
+RETRY_MINUTES = "15"
+
+# When the optional "where are you tomorrow?" question is sent (/ask on).
+ASK_TIME = "20:00"
+
+# Text (case-insensitive) used to find the right option in the check-in dropdown.
+CAMPUS_OPTION_MATCH = "campus"
+HOME_OPTION_MATCH = "home"
+
+# Optional (mainly for automation-only mode). Better set these in the Cloudflare
+# dashboard so you can change them from your phone without deploying:
+# DAY_OVERRIDES = "12/11:home, 23/12-03/01:off"
+# PAUSED = "false"

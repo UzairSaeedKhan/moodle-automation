@@ -1,0 +1,22 @@
+# secrets
+.dev.vars
+.env
+
+# python / uv
+.venv/
+.venv-workers/
+__pycache__/
+*.pyc
+.pytest_cache/
+python_modules/
+
+# wrangler / node
+node_modules/
+.wrangler/
+
+# test output
+tests/e2e/worker.log
+*.log
+
+# local Claude Code settings
+.claude/
