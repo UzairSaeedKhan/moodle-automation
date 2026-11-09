@@ -7,11 +7,18 @@ from checkin.bot import handle_update
 
 
 def msg(text, chat=42):
-    return {"message": {"chat": {"id": chat}, "text": text}}
+    return {"message": {"chat": {"id": chat, "type": "private"}, "from": {"id": chat}, "text": text}}
 
 
 def cb(data, chat=42):
-    return {"callback_query": {"id": "q1", "data": data, "message": {"chat": {"id": chat}, "message_id": 7}}}
+    return {
+        "callback_query": {
+            "id": "q1",
+            "data": data,
+            "from": {"id": chat},
+            "message": {"chat": {"id": chat, "type": "private"}, "message_id": 7},
+        }
+    }
 
 
 def send(app, update):
@@ -195,3 +202,24 @@ def test_errors_are_reported_not_raised():
     app, world, _, _ = make_app(MOODLE_PASSWORD="")
     send(app, msg("/test"))
     assert world.sent_texts()[-1].startswith("⚠️")
+
+
+def test_group_chats_and_other_members_are_ignored():
+    app, world, _, _ = make_app()  # owner = 42
+    group = {"message": {"chat": {"id": 42, "type": "group"}, "from": {"id": 42}, "text": "/pause"}}
+    other_member = {"message": {"chat": {"id": 42, "type": "private"}, "from": {"id": 7}, "text": "/pause"}}
+    other_button = {
+        "callback_query": {"id": "q", "data": "co|2026-11-05|am", "from": {"id": 7},
+                           "message": {"chat": {"id": 42, "type": "private"}, "message_id": 1}}
+    }
+    for u in (group, other_member, other_button):
+        send(app, u)
+    assert world.telegram == [] and world.submitted == []
+
+
+def test_telegram_header_secret_is_not_the_setup_secret():
+    from checkin.config import Config
+
+    cfg = Config(webhook_secret="S", telegram_token="T")
+    assert cfg.telegram_header_secret and cfg.telegram_header_secret != "S"
+    assert Config(webhook_secret="S", telegram_token="").telegram_header_secret == ""

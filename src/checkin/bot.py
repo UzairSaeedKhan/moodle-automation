@@ -22,11 +22,24 @@ DATE_HELP = "Examples: <code>tomorrow</code>, <code>fri</code>, <code>12/11</cod
 ABSENCE_HINT = "\n\nℹ️ Remember to report the absence in Moodle if needed."
 
 
+def _is_owner(cfg, chat: dict, sender: dict) -> bool:
+    """Only you, in your private chat with the bot. In a private chat the chat id is your user id,
+    so this also rejects groups (other members) even if TELEGRAM_CHAT_ID was set to a group."""
+    owner = str(cfg.telegram_chat_id or "").strip()
+    if owner in ("", "0"):
+        return False
+    return (
+        chat.get("type", "private") == "private"
+        and str(chat.get("id")) == owner
+        and str((sender or {}).get("id")) == owner
+    )
+
+
 async def handle_update(app: App, update: dict[str, Any]) -> None:
     cfg = app.cfg
     if "callback_query" in update:
         q = update["callback_query"]
-        if str(q.get("message", {}).get("chat", {}).get("id")) != str(cfg.telegram_chat_id):
+        if not _is_owner(cfg, q.get("message", {}).get("chat", {}), q.get("from")):
             return
         await _handle_callback(app, q)
         return
@@ -35,11 +48,13 @@ async def handle_update(app: App, update: dict[str, Any]) -> None:
     text = (msg.get("text") or "").strip()
     if not text:
         return
-    chat_id = str(msg.get("chat", {}).get("id"))
-    if chat_id != str(cfg.telegram_chat_id):
-        # Only during setup (TELEGRAM_CHAT_ID not set yet, or 0): tell the owner which id to use.
-        # Once it's set, strangers get no reply at all.
-        if text.startswith("/start") and str(cfg.telegram_chat_id or "0").strip() in ("", "0"):
+    chat = msg.get("chat", {})
+    chat_id = str(chat.get("id"))
+    if not _is_owner(cfg, chat, msg.get("from")):
+        # Only during setup (TELEGRAM_CHAT_ID not set yet, or 0) and only in a private chat:
+        # tell the owner which id to use. Once it's set, everyone else gets no reply at all.
+        setting_up = str(cfg.telegram_chat_id or "0").strip() in ("", "0")
+        if setting_up and text.startswith("/start") and chat.get("type", "private") == "private":
             await app.tg.send(f"Your chat id is {chat_id}.\nSet it as the TELEGRAM_CHAT_ID secret to use this bot.", chat_id=chat_id)
         return
 

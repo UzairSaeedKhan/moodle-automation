@@ -30,6 +30,8 @@ WORKER_PORT = 8787
 MOCK = f"http://127.0.0.1:{MOCK_PORT}"
 WORKER = f"http://127.0.0.1:{WORKER_PORT}"
 SECRET = "e2e-secret"
+# What the Worker expects from Telegram: derived from SECRET + bot token "T" (see Config).
+HEADER_SECRET = __import__("hmac").new(b"T", SECRET.encode(), "sha256").hexdigest()
 
 world = FakeWorld(moodle_base=MOCK, telegram_base=MOCK, day_label="Thu 5 Nov 2026")
 lock = threading.Lock()
@@ -71,8 +73,8 @@ def telegram_update(text, chat=42):
     return http(
         "POST",
         f"{WORKER}/telegram",
-        json.dumps({"message": {"chat": {"id": chat}, "text": text}}),
-        {"content-type": "application/json", "x-telegram-bot-api-secret-token": SECRET},
+        json.dumps({"message": {"chat": {"id": chat, "type": "private"}, "from": {"id": chat}, "text": text}}),
+        {"content-type": "application/json", "x-telegram-bot-api-secret-token": HEADER_SECRET},
     )
 
 
@@ -147,6 +149,10 @@ def main() -> int:
         check("/setup registers webhook + commands", status == 200 and "setWebhook" in sent and "setMyCommands" in sent, (status, body, sent))
         webhook_url = next((p["url"] for m, p in world.telegram if m == "setWebhook"), "")
         check("/setup uses the worker's own URL", webhook_url.endswith("/telegram"), webhook_url)
+        registered = next((p["secret_token"] for m, p in world.telegram if m == "setWebhook"), "")
+        check("Telegram gets a derived secret, not the /setup one", registered == HEADER_SECRET != SECRET, registered)
+        status, _ = http("POST", f"{WORKER}/telegram", "{}", {"x-telegram-bot-api-secret-token": SECRET})
+        check("the /setup secret alone can't fake Telegram messages", status == 403, status)
 
         world.telegram.clear()
         telegram_update("/start", chat=999)
@@ -193,8 +199,8 @@ def main() -> int:
         http(
             "POST",
             f"{WORKER}/telegram",
-            json.dumps({"callback_query": {"id": "q", "data": "cx", "message": {"chat": {"id": 42}, "message_id": 5}}}),
-            {"content-type": "application/json", "x-telegram-bot-api-secret-token": SECRET},
+            json.dumps({"callback_query": {"id": "q", "data": "cx", "from": {"id": 42}, "message": {"chat": {"id": 42, "type": "private"}, "message_id": 5}}}),
+            {"content-type": "application/json", "x-telegram-bot-api-secret-token": HEADER_SECRET},
         )
         edits = [p["text"] for m, p in world.telegram if m == "editMessageText"]
         check("Cancel button: nothing changed", edits and "Cancelled" in edits[-1] and world.state == before, (edits, world.state))

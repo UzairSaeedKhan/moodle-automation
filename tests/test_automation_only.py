@@ -83,6 +83,6 @@ def test_status_shows_settings_source_and_bad_entries():
     from checkin.bot import handle_update
 
     app, world, _, _ = make_app(DAY_OVERRIDES="05/11:off, oops")
-    run(handle_update(app, {"message": {"chat": {"id": 42}, "text": "/status"}}))
+    run(handle_update(app, {"message": {"chat": {"id": 42, "type": "private"}, "from": {"id": 42}, "text": "/status"}}))
     text = world.sent_texts()[-1]
     assert "(from DAY_OVERRIDES)" in text and "oops" in text

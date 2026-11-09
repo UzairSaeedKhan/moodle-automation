@@ -93,7 +93,7 @@ class Default(WorkerEntrypoint):
 
         # Telegram sends every message / button press here.
         if url.path == "/telegram" and request.method == "POST":
-            if not _same(_str(request.headers.get("x-telegram-bot-api-secret-token")), secret):
+            if not _same(_str(request.headers.get("x-telegram-bot-api-secret-token")), app.cfg.telegram_header_secret):
                 return Response("forbidden", status=403)
             update = _to_py(await request.json())
             try:
@@ -109,7 +109,12 @@ class Default(WorkerEntrypoint):
             origin = f"{url.scheme}://{url.netloc}"
             webhook = await app.tg.call(
                 "setWebhook",
-                {"url": f"{origin}/telegram", "secret_token": secret, "allowed_updates": ["message", "callback_query"]},
+                {
+                    "url": f"{origin}/telegram",
+                    # Not the URL secret itself: see Config.telegram_header_secret.
+                    "secret_token": app.cfg.telegram_header_secret,
+                    "allowed_updates": ["message", "callback_query"],
+                },
             )
             commands = await app.tg.call("setMyCommands", {"commands": COMMANDS})
             return Response.json({"webhook": webhook, "commands": commands})

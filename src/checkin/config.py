@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
 import re
 from dataclasses import dataclass, field
 from typing import Callable, Literal
@@ -106,6 +108,14 @@ class Config:
     day_rules: list[DayRule] = field(default_factory=list)
     day_rules_invalid: list[str] = field(default_factory=list)
     paused: bool = False  # PAUSED=true in settings / dashboard
+
+    @property
+    def telegram_header_secret(self) -> str:
+        """What Telegram sends with each update. It's derived from the webhook secret AND the bot
+        token, so the value you type in the /setup URL can't be used to fake Telegram messages."""
+        if not (self.webhook_secret and self.telegram_token):
+            return ""
+        return hmac.new(self.telegram_token.encode(), self.webhook_secret.encode(), hashlib.sha256).hexdigest()
 
     @property
     def telegram_enabled(self) -> bool:

@@ -98,9 +98,11 @@ https://moodle-checkin-bot.<you>.workers.dev/setup?secret=<your TELEGRAM_WEBHOOK
 
 You should see `"ok": true` twice. That connects Telegram to your bot.
 
+> This link contains your secret, so don't share it or screenshot it. On its own it can only re-run this setup: Telegram authenticates with a different value derived from your secret **and** your bot token. Open `/setup` again after you change `TELEGRAM_WEBHOOK_SECRET` or `TELEGRAM_BOT_TOKEN`.
+
 ### 7. Link your Telegram account *(Telegram mode only)*
 
-Send `/start` to your bot. It replies with **your chat id** (it only does this while `TELEGRAM_CHAT_ID` is `0`; afterwards it ignores everyone but you). Save it:
+Send `/start` to your bot **in a private chat** (not a group). It replies with **your chat id** (it only does this while `TELEGRAM_CHAT_ID` is `0`; afterwards it ignores everyone but you). Save it:
 
 ```bash
 uv run pywrangler secret put TELEGRAM_CHAT_ID    # paste the number
@@ -189,7 +191,8 @@ curl "http://localhost:8787/__scheduled?cron=*+*+*+*+*"
 **Built-in protections**
 
 - Your password and Moodle session are only ever sent to `MOODLE_URL`, and only over `https://`. Redirects or forms pointing anywhere else are refused.
-- Telegram messages are only accepted with your webhook secret, and only from your own chat id. Everyone else gets no reply.
+- Telegram updates are only accepted with a secret header derived from your webhook secret and bot token, so the `/setup` link alone can't be used to fake messages.
+- Commands and buttons only work from **you**, in your **private chat** with the bot: the chat and the sender must both match `TELEGRAM_CHAT_ID`. Groups and everyone else are ignored, with no reply.
 - Secrets are never logged or printed.
 - On the free Cloudflare plan nothing can cost you money: the limits stop requests, they never bill you. The bot uses about 1,450 of the 100,000 daily requests.
 
@@ -199,7 +202,8 @@ curl "http://localhost:8787/__scheduled?cron=*+*+*+*+*"
 2. Don't reuse your Moodle password anywhere else.
 3. Never commit `.dev.vars`. Run `git status` before your first push.
 4. If a secret leaks: change your Moodle password, or `/revoke` the token in @BotFather, then `uv run pywrangler secret put …` with the new value.
-5. If your URL is ever flooded with requests, change your `workers.dev` subdomain in the Cloudflare dashboard and open `/setup` again.
+5. If your `/setup` link was ever shared or shown on screen, set a new `TELEGRAM_WEBHOOK_SECRET` and open `/setup` with the new one.
+6. If your URL is ever flooded with requests, change your `workers.dev` subdomain in the Cloudflare dashboard and open `/setup` again.
 
 **Privacy (GDPR)**
 
@@ -218,6 +222,7 @@ You are responsible for your own attendance record. Use `/off`, `/pause` or `DAY
 - **"No option containing … in the check-in form"**: the message lists the options it found. Set `CAMPUS_OPTION_MATCH` / `HOME_OPTION_MATCH` in `wrangler.toml` to part of the right option text, then deploy again.
 - **"Couldn't read the attendance table"**: `ATTENDANCE_CMID` is probably wrong.
 - **"Exceeded CPU time limit"** in the logs: the free plan allows 10 ms of CPU per run. If you hit it, tell the maintainer.
+- **The bot stopped answering in Telegram after an update or a secret change**: open `/setup?secret=…` again so Telegram gets the current secret.
 - **Logs**: `uv run pywrangler tail` shows live logs from your Worker.
 
 ## License
