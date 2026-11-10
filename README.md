@@ -193,7 +193,10 @@ curl "http://localhost:8787/__scheduled?cron=*+*+*+*+*"
 - Your password and Moodle session are only ever sent to `MOODLE_URL`, and only over `https://`. Redirects or forms pointing anywhere else are refused.
 - Telegram updates are only accepted with a secret header derived from your webhook secret and bot token, so your webhook secret alone can't be used to fake messages. `/setup` takes the secret in a form (POST), never in the URL.
 - Commands and buttons only work from **you**, in your **private chat** with the bot: the chat and the sender must both match `TELEGRAM_CHAT_ID`. Groups and everyone else are ignored, with no reply.
-- Secrets are never logged or printed.
+- Secrets are never logged or printed. Error messages are scrubbed of your bot token, password, webhook secrets and Moodle session keys before they're logged or sent to Telegram.
+- Your bot token is only ever sent to Telegram over `https://` (a non-HTTPS `TELEGRAM_API_BASE` is refused).
+- Oversized requests to `/setup` and `/telegram` are rejected before being read.
+- There's no per-request rate limit: on `workers.dev`, Cloudflare's rate-limiting rules aren't available, and blocked requests would still count toward your daily quota. Cloudflare's automatic DDoS protection still applies. See point 6 below if you're ever flooded.
 - On the free Cloudflare plan nothing can cost you money: the limits stop requests, they never bill you. The bot uses about 1,450 of the 100,000 daily requests.
 
 **Your part**

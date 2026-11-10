@@ -149,6 +149,8 @@ def main() -> int:
               status == 200 and 'type="password"' in body and world.telegram == [], (status, world.telegram))
         status, _ = http("POST", f"{WORKER}/setup", "secret=wrong", {"content-type": "application/x-www-form-urlencoded"})
         check("/setup rejects a wrong secret", status == 403 and world.telegram == [], status)
+        status, _ = http("POST", f"{WORKER}/setup", f"secret={SECRET}&pad={'x' * 5000}", {"content-type": "application/x-www-form-urlencoded"})
+        check("/setup ignores oversized requests", status == 403 and world.telegram == [], status)
         status, body = http("POST", f"{WORKER}/setup", f"secret={SECRET}", {"content-type": "application/x-www-form-urlencoded"})
         sent = [m for m, _ in world.telegram]
         check("/setup registers webhook + commands", status == 200 and "setWebhook" in sent and "setMyCommands" in sent, (status, body, sent))

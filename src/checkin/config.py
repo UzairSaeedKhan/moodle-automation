@@ -109,6 +109,15 @@ class Config:
     day_rules_invalid: list[str] = field(default_factory=list)
     paused: bool = False  # PAUSED=true in settings / dashboard
 
+    def redact(self, text: str) -> str:
+        """Remove secrets from any text before it is logged or sent (error messages, API replies)."""
+        text = str(text)
+        for secret in (self.telegram_token, self.moodle_password, self.webhook_secret, self.telegram_header_secret):
+            if secret and len(secret) >= 4:
+                text = text.replace(secret, "***")
+        text = re.sub(r"bot\d+:[A-Za-z0-9_-]{20,}", "bot***", text)  # any Telegram bot token
+        return re.sub(r"(sesskey=)[^&\s\"']+", r"\1***", text)
+
     @property
     def telegram_header_secret(self) -> str:
         """What Telegram sends with each update. It's derived from the webhook secret AND the bot

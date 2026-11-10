@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from typing import Any
+from urllib.parse import urlsplit
 
 from .config import Config
 from .ports import Http
@@ -36,14 +37,23 @@ class Telegram:
     async def call(self, method: str, payload: dict[str, Any]) -> dict[str, Any]:
         if not self.cfg.telegram_enabled:  # automation-only mode: nothing to send to
             return {"ok": False, "description": "Telegram not configured"}
+        base = urlsplit(self.cfg.telegram_api_base)
+        local = base.scheme == "http" and base.hostname in ("localhost", "127.0.0.1")  # local tests only
+        if base.scheme != "https" and not local:
+            print("Telegram disabled: TELEGRAM_API_BASE must start with https://")
+            return {"ok": False, "description": "TELEGRAM_API_BASE must start with https://"}
         url = f"{self.cfg.telegram_api_base}/bot{self.cfg.telegram_token}/{method}"
-        res = await self.http.request("POST", url, {"content-type": "application/json"}, json.dumps(payload))
+        try:
+            res = await self.http.request("POST", url, {"content-type": "application/json"}, json.dumps(payload))
+        except Exception as e:  # noqa: BLE001 - a network error may mention the URL, which holds the token
+            print(f"Telegram {method} failed: {self.cfg.redact(repr(e))}")
+            return {"ok": False, "description": "network error"}
         try:
             data = json.loads(res.text)
         except ValueError:
             data = {"ok": False, "description": f"HTTP {res.status}"}
         if not data.get("ok"):
-            print(f"Telegram {method} failed: {data.get('description')}")
+            print(f"Telegram {method} failed: {self.cfg.redact(data.get('description'))}")
         return data
 
     async def send(self, text: str, chat_id: str | int | None = None, **extra: Any) -> dict[str, Any]:

@@ -63,7 +63,7 @@ async def handle_update(app: App, update: dict[str, Any]) -> None:
     try:
         await _command(app, cmd, args)
     except Exception as e:  # noqa: BLE001
-        await app.tg.send(f"⚠️ {esc(str(e) or e.__class__.__name__)}")
+        await app.tg.send(f"⚠️ {esc(app.cfg.redact(str(e) or e.__class__.__name__))}")
 
 
 _ALIASES = {"checkin": "/checkin", "check-in": "/checkin", "checkout": "/checkout", "check-out": "/checkout"}

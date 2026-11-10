@@ -95,6 +95,18 @@ You should then see <code>"ok": true</code> twice.</p>
 """
 
 
+MAX_SETUP_BYTES = 1024
+MAX_UPDATE_BYTES = 256 * 1024
+
+
+def _too_big(request, limit):
+    """Reject oversized bodies before reading them (by the declared Content-Length)."""
+    try:
+        return int(_str(request.headers.get("content-length")) or 0) > limit
+    except ValueError:
+        return True
+
+
 def _same(given, secret):
     """Constant-time secret check; an empty secret never matches."""
     return bool(secret) and bool(given) and hmac.compare_digest(str(given).encode(), str(secret).encode())
@@ -117,11 +129,13 @@ class Default(WorkerEntrypoint):
         if url.path == "/telegram" and request.method == "POST":
             if not _same(_str(request.headers.get("x-telegram-bot-api-secret-token")), app.cfg.telegram_header_secret):
                 return Response("forbidden", status=403)
+            if _too_big(request, MAX_UPDATE_BYTES):  # real Telegram updates are a few KB
+                return Response("too large", status=413)
             update = _to_py(await request.json())
             try:
                 await handle_update(app, update)
             except Exception as e:  # noqa: BLE001 - always 200, or Telegram keeps re-sending
-                print("update failed:", repr(e))
+                print("update failed:", app.cfg.redact(repr(e)))
             return Response("ok")
 
         # One-time setup: open https://<your-worker>/setup, paste TELEGRAM_WEBHOOK_SECRET, press the button.
@@ -129,7 +143,10 @@ class Default(WorkerEntrypoint):
         if url.path == "/setup" and request.method != "POST":
             return Response(SETUP_PAGE, headers=PAGE_HEADERS)
         if url.path == "/setup":
-            form = parse_qs(str(await request.text()))
+            body = "" if _too_big(request, MAX_SETUP_BYTES) else str(await request.text())
+            if len(body) > MAX_SETUP_BYTES:
+                body = ""
+            form = parse_qs(body)
             if not _same(form.get("secret", [None])[0], secret):
                 return Response("forbidden", status=403, headers=PAGE_HEADERS)
             origin = f"{url.scheme}://{url.netloc}"

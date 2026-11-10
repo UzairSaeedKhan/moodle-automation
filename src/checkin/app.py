@@ -73,7 +73,7 @@ class App:
                 await self.tg.send(_format_outcome(now.ymd, slot, mode, outcome))
         except Exception as e:  # noqa: BLE001 - every failure must reach the user
             permanent = (isinstance(e, MoodleError) and not e.retryable) or isinstance(e, FormMismatchError)
-            message = str(e) or e.__class__.__name__
+            message = self.cfg.redact(str(e) or e.__class__.__name__)
             state = RunState(False, "pending", attempts, message, now.hhmm)
             if permanent or last_chance or manual:
                 state = RunState(not manual, "failed", attempts, message, now.hhmm)
