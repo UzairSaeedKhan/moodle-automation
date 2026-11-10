@@ -112,7 +112,7 @@ class Config:
     @property
     def telegram_header_secret(self) -> str:
         """What Telegram sends with each update. It's derived from the webhook secret AND the bot
-        token, so the value you type in the /setup URL can't be used to fake Telegram messages."""
+        token, so the value you type into /setup can't be used to fake Telegram messages."""
         if not (self.webhook_secret and self.telegram_token):
             return ""
         return hmac.new(self.telegram_token.encode(), self.webhook_secret.encode(), hashlib.sha256).hexdigest()

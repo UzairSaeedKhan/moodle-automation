@@ -145,6 +145,11 @@ def main() -> int:
         check("webhook rejects a wrong secret", status == 403, status)
 
         status, body = http("GET", f"{WORKER}/setup?secret={SECRET}")
+        check("GET /setup only shows the form (a secret in the URL does nothing)",
+              status == 200 and 'type="password"' in body and world.telegram == [], (status, world.telegram))
+        status, _ = http("POST", f"{WORKER}/setup", "secret=wrong", {"content-type": "application/x-www-form-urlencoded"})
+        check("/setup rejects a wrong secret", status == 403 and world.telegram == [], status)
+        status, body = http("POST", f"{WORKER}/setup", f"secret={SECRET}", {"content-type": "application/x-www-form-urlencoded"})
         sent = [m for m, _ in world.telegram]
         check("/setup registers webhook + commands", status == 200 and "setWebhook" in sent and "setMyCommands" in sent, (status, body, sent))
         webhook_url = next((p["url"] for m, p in world.telegram if m == "setWebhook"), "")
@@ -152,7 +157,7 @@ def main() -> int:
         registered = next((p["secret_token"] for m, p in world.telegram if m == "setWebhook"), "")
         check("Telegram gets a derived secret, not the /setup one", registered == HEADER_SECRET != SECRET, registered)
         status, _ = http("POST", f"{WORKER}/telegram", "{}", {"x-telegram-bot-api-secret-token": SECRET})
-        check("the /setup secret alone can't fake Telegram messages", status == 403, status)
+        check("the webhook secret alone can't fake Telegram messages", status == 403, status)
 
         world.telegram.clear()
         telegram_update("/start", chat=999)

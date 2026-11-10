@@ -73,6 +73,28 @@ def make_app(env) -> App:
     return App(Config.from_env(get), JsHttp(), JsKV(env.STATE), lambda: datetime.now(timezone.utc))
 
 
+PAGE_HEADERS = {
+    "content-type": "text/html; charset=utf-8",
+    "cache-control": "no-store",
+    "referrer-policy": "no-referrer",
+    "x-frame-options": "DENY",
+}
+
+SETUP_PAGE = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bot setup</title>
+<style>body{font-family:system-ui,sans-serif;max-width:32rem;margin:3rem auto;padding:0 1rem;line-height:1.5}
+input,button{font:inherit;padding:.5rem;width:100%;box-sizing:border-box;margin:.25rem 0}</style></head>
+<body><h1>Connect Telegram</h1>
+<p>Paste your <code>TELEGRAM_WEBHOOK_SECRET</code> and press the button.
+You should then see <code>"ok": true</code> twice.</p>
+<form method="post" autocomplete="off">
+<input type="password" name="secret" placeholder="TELEGRAM_WEBHOOK_SECRET" required autofocus>
+<button type="submit">Connect</button>
+</form></body></html>
+"""
+
+
 def _same(given, secret):
     """Constant-time secret check; an empty secret never matches."""
     return bool(secret) and bool(given) and hmac.compare_digest(str(given).encode(), str(secret).encode())
@@ -102,10 +124,14 @@ class Default(WorkerEntrypoint):
                 print("update failed:", repr(e))
             return Response("ok")
 
-        # One-time setup: open https://<your-worker>/setup?secret=<TELEGRAM_WEBHOOK_SECRET>
+        # One-time setup: open https://<your-worker>/setup, paste TELEGRAM_WEBHOOK_SECRET, press the button.
+        # The secret travels in the POST body, never in the URL (so not in browser history or logs).
+        if url.path == "/setup" and request.method != "POST":
+            return Response(SETUP_PAGE, headers=PAGE_HEADERS)
         if url.path == "/setup":
-            if not _same(parse_qs(url.query).get("secret", [None])[0], secret):
-                return Response("forbidden", status=403)
+            form = parse_qs(str(await request.text()))
+            if not _same(form.get("secret", [None])[0], secret):
+                return Response("forbidden", status=403, headers=PAGE_HEADERS)
             origin = f"{url.scheme}://{url.netloc}"
             webhook = await app.tg.call(
                 "setWebhook",
@@ -117,7 +143,7 @@ class Default(WorkerEntrypoint):
                 },
             )
             commands = await app.tg.call("setMyCommands", {"commands": COMMANDS})
-            return Response.json({"webhook": webhook, "commands": commands})
+            return Response.json({"webhook": webhook, "commands": commands}, headers={"cache-control": "no-store"})
 
         mode = "with Telegram" if app.cfg.telegram_enabled else "automation-only (no Telegram)"
         return Response(f"moodle-checkin-bot is running, {mode}.")
